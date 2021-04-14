@@ -4,18 +4,6 @@ from torch import nn
 from torchvision import models
 from torchsummaryX import summary
 
-class ShuffleBlock(nn.Module):
-    def __init__(self, groups):
-        super(ShuffleBlock, self).__init__()
-        self.groups = groups
-
-    def forward(self, x):
-
-        batch, dim, height, width = x.size()
-        g = self.groups
-
-        return x.view(batch, g, dim // g, height, width).permute(0, 2, 1, 3, 4).contiguous().view(batch, dim, height, width)
-
 class MHSA(nn.Module):
     def __init__(self, height, width, dim, head):
         super(MHSA, self).__init__()
@@ -28,16 +16,12 @@ class MHSA(nn.Module):
         self.w_k = nn.Conv2d(in_channels=dim, out_channels=dim, kernel_size=1, stride=1, bias=True)
         self.w_v = nn.Conv2d(in_channels=dim, out_channels=dim, kernel_size=1, stride=1, bias=True)
 
-        # shuffle features in channel dimension
-        self.shuffle = ShuffleBlock(groups=head)
         self.softmax = nn.Softmax(dim=-1)
-
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
 
     def forward(self, x):
 
         batch, dim, height, width = x.size()
-        x = self.shuffle(x)
         q = self.w_q(x).view(batch, self.head, dim // self.head, -1).permute(0, 1, 3, 2)
         k = self.w_k(x).view(batch, self.head, dim // self.head, -1)
         v = self.w_v(x).view(batch, self.head, dim // self.head, -1)
